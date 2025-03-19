@@ -420,3 +420,6 @@ vcpkg_installed/
 
 # Emscripten
 build-web
+
+# mkcert
+*.pem
