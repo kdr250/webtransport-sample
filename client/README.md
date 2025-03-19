@@ -1,4 +1,9 @@
 ## 動作確認
+### Webサーバー起動
+```
+python server.py {pem file} {key file}
+```
+
 ### Windows
 ショートカットを作成して、リンク先に以下を指定する
 ```
