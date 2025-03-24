@@ -1,6 +1,7 @@
 #include <folly/init/Init.h>
 #include <folly/portability/GFlags.h>
 
+#include "ConnIdLogger.h"
 #include "HQCommandLine.h"
 
 using namespace quic::samples;
@@ -17,9 +18,42 @@ int main(int argc, char* argv[])
 #endif
 
     folly::init(&argc, &argv, false);
-    int error = 0;
+    int result = 0;
 
     auto expectedParams = initializeParamsFromCmdline();
 
-    // TODO: not yet implemented
+    if (expectedParams)
+    {
+        auto& params = expectedParams.value();
+        proxygen::ConnIdLogSink sink(params.logdir, params.logprefix);
+        if (sink.isValid())
+        {
+            AddLogSink(&sink);
+        }
+        else if (!params.logdir.empty())
+        {
+            LOG(ERROR) << "Cannot open " << params.logdir;
+        }
+
+        // TODO: not yet implemented
+
+        if (params.logRuntime)
+        {
+            auto runTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               std::chrono::steady_clock().now().time_since_epoch())
+                               .count()
+                           - startTime;
+            LOG(INFO) << "Run time: " << runTime << " ms";
+        }
+        return result;
+    }
+    else
+    {
+        for (auto& param : expectedParams.error())
+        {
+            LOG(ERROR) << "Invalid param: " << param.name << " " << param.value << " "
+                       << param.errorMessage;
+        }
+        return EXIT_FAILURE;
+    }
 }
