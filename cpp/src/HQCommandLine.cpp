@@ -150,8 +150,8 @@ namespace quic::samples
     void initializeHttpClientSettings(HQToolClientParams& hqParams);
     void initializeHttpServerSettings(HQToolServerParams& hqParams);
 
-    void initializeQLogSettings(HQBaseParams& hqParams);
-    void initializeFizzSettings(HQBaseParams& hqParams);
+    void initializeQLogSettings(MyHQBaseParams& hqParams);
+    void initializeFizzSettings(MyHQBaseParams& hqParams);
 
     HQInvalidParams validate(const HQToolParams& params);
 
@@ -258,7 +258,7 @@ namespace quic::samples
 
     void initializeTransportSettings(HQToolParams& hqParams)
     {
-        HQBaseParams& baseParams = hqParams.baseParams();
+        MyHQBaseParams& baseParams = hqParams.baseParams();
         if (FLAGS_quic_version != 0)
         {
             auto quicVersion     = static_cast<quic::QuicVersion>(FLAGS_quic_version);
@@ -433,13 +433,13 @@ namespace quic::samples
         hqParams.httpVersion.parse(FLAGS_httpversion);
     }  // initializeHttpClientSettings
 
-    void initializeQLogSettings(HQBaseParams& hqParams)
+    void initializeQLogSettings(MyHQBaseParams& hqParams)
     {
         hqParams.qLoggerPath = FLAGS_qlogger_path;
         hqParams.prettyJson  = FLAGS_pretty_json;
     }
 
-    void initializeFizzSettings(HQBaseParams& hqParams)
+    void initializeFizzSettings(MyHQBaseParams& hqParams)
     {
         hqParams.certificateFilePath = FLAGS_cert;
         hqParams.keyFilePath         = FLAGS_key;
@@ -475,13 +475,13 @@ namespace quic::samples
     HQInvalidParams validate(const HQToolParams& params)
     {
         HQInvalidParams invalidParams;
-#define INVALID_PARAM(param, error)                                                      \
-    do                                                                                   \
-    {                                                                                    \
-        HQInvalidParam invalid = {.name         = #param,                                \
-                                  .value        = folly::to<std::string>(FLAGS_##param), \
-                                  .errorMessage = (error)};                              \
-        invalidParams.push_back(invalid);                                                \
+#define INVALID_PARAM(param, error)                                                        \
+    do                                                                                     \
+    {                                                                                      \
+        MyHQInvalidParam invalid = {.name         = #param,                                \
+                                    .value        = folly::to<std::string>(FLAGS_##param), \
+                                    .errorMessage = (error)};                              \
+        invalidParams.push_back(invalid);                                                  \
     } while (false);
 
         // Validate the common settings

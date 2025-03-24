@@ -17,7 +17,7 @@
 
 namespace quic::samples
 {
-    struct HTTPVersion
+    struct MyHTTPVersion
     {
         std::string version   = "1.1";
         std::string canonical = "http/1.1";
@@ -27,12 +27,12 @@ namespace quic::samples
         bool parse(const std::string& versionString);
     };
 
-    std::ostream& operator<<(std::ostream& outStream, const HTTPVersion& version);
+    std::ostream& operator<<(std::ostream& outStream, const MyHTTPVersion& version);
 
     /**
      * Params for both clients and servers
      */
-    struct HQBaseParams
+    struct MyHQBaseParams
     {
         // Transport section
         std::string host;
@@ -63,7 +63,7 @@ namespace quic::samples
 
         // HTTP section
         std::string protocol = "h3";
-        HTTPVersion httpVersion;
+        MyHTTPVersion httpVersion;
 
         std::chrono::milliseconds txnTimeout = std::chrono::seconds(5);
 
@@ -82,20 +82,20 @@ namespace quic::samples
         std::string transportKnobs;
     };
 
-    struct HQServerParams : public HQBaseParams
+    struct MyHQServerParams : public MyHQBaseParams
     {
         size_t serverThreads = 0;
         std::string ccpConfig;
         folly::Optional<int64_t> rateLimitPerThread;
     };
 
-    struct HQInvalidParam
+    struct MyHQInvalidParam
     {
         std::string name;
         std::string value;
         std::string errorMessage;
     };
 
-    using HQInvalidParams = std::vector<HQInvalidParam>;
+    using HQInvalidParams = std::vector<MyHQInvalidParam>;
 
 }  // namespace quic::samples

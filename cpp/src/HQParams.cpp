@@ -2,7 +2,7 @@
 
 namespace quic::samples
 {
-    bool HTTPVersion::parse(const std::string& versionString)
+    bool MyHTTPVersion::parse(const std::string& versionString)
     {
         version = versionString;
         if (version.length() == 1)
@@ -43,7 +43,7 @@ namespace quic::samples
         }
     }
 
-    std::ostream& operator<<(std::ostream& outStream, const HTTPVersion& version)
+    std::ostream& operator<<(std::ostream& outStream, const MyHTTPVersion& version)
     {
         outStream << "http-version=" << version.major << "/" << version.minor
                   << " (orig=" << version.version << ", canonical=" << version.canonical << ")";

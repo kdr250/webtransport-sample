@@ -3,6 +3,7 @@
 
 #include "ConnIdLogger.h"
 #include "HQCommandLine.h"
+#include "HQServerModule.h"
 
 using namespace quic::samples;
 
@@ -35,7 +36,20 @@ int main(int argc, char* argv[])
             LOG(ERROR) << "Cannot open " << params.logdir;
         }
 
-        // TODO: not yet implemented
+        switch (params.mode)
+        {
+            case HQMode::SERVER:
+                startServer(boost::get<HQToolServerParams>(params.params));
+                break;
+
+            case HQMode::CLIENT:
+                // TODO: not yet implemented
+                break;
+
+            default:
+                LOG(ERROR) << "Unknown mode specified...";
+                return EXIT_FAILURE;
+        }
 
         if (params.logRuntime)
         {

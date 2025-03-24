@@ -16,7 +16,7 @@ namespace quic::samples
 
     std::ostream& operator<<(std::ostream& outStream, const HQMode& mode);
 
-    struct HQToolClientParams : public HQBaseParams
+    struct HQToolClientParams : public MyHQBaseParams
     {
         std::string outdir;
         bool logResponse;
@@ -34,7 +34,7 @@ namespace quic::samples
         std::vector<std::string> requestGaps;
     };
 
-    struct HQToolServerParams : public HQBaseParams
+    struct HQToolServerParams : public MyHQServerParams
     {
         uint16_t h2port;
         folly::Optional<folly::SocketAddress> localH2Address;
@@ -65,15 +65,15 @@ namespace quic::samples
             }
         }
 
-        [[nodiscard]] const HQBaseParams& baseParams() const
+        [[nodiscard]] const MyHQBaseParams& baseParams() const
         {
             switch (mode)
             {
                 case HQMode::CLIENT:
-                    return (HQBaseParams&)boost::get<HQToolClientParams>(params);
+                    return (MyHQBaseParams&)boost::get<HQToolClientParams>(params);
 
                 case HQMode::SERVER:
-                    return (HQBaseParams&)boost::get<HQToolServerParams>(params);
+                    return (MyHQBaseParams&)boost::get<HQToolServerParams>(params);
 
                 default:
                     LOG(FATAL) << "Not initialized...";
@@ -81,15 +81,15 @@ namespace quic::samples
             }
         }
 
-        HQBaseParams& baseParams()
+        MyHQBaseParams& baseParams()
         {
             switch (mode)
             {
                 case HQMode::CLIENT:
-                    return (HQBaseParams&)boost::get<HQToolClientParams>(params);
+                    return (MyHQBaseParams&)boost::get<HQToolClientParams>(params);
 
                 case HQMode::SERVER:
-                    return (HQBaseParams&)boost::get<HQToolServerParams>(params);
+                    return (MyHQBaseParams&)boost::get<HQToolServerParams>(params);
 
                 default:
                     LOG(FATAL) << "Not initialized...";
