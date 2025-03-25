@@ -8,9 +8,9 @@
 
 #include "CurlClient.h"
 
-DEFINE_string(host, "::1", "HQ server hostname/IP");
+DEFINE_string(host, "127.0.0.1", "HQ server hostname/IP");
 DEFINE_int32(port, 6666, "HQ server port");
-DEFINE_int32(threads, 0, "QUIC Server threads, 0 = nCPUs");
+DEFINE_int32(threads, 1, "QUIC Server threads, 0 = nCPUs");
 DEFINE_int32(h2port, 6667, "HTTP/2 server port");
 DEFINE_string(local_address, "", "Local Address to bind to. Client only. Format should be ip:port");
 DEFINE_string(mode, "server", "Mode to run in: 'client' or 'server'");
@@ -227,7 +227,7 @@ namespace quic::samples
             serverParams.host              = FLAGS_host;
             serverParams.port              = FLAGS_port;
             serverParams.httpServerThreads = FLAGS_threads;
-            serverParams.localH2Address =
+            serverParams.localAddress =
                 folly::SocketAddress(serverParams.host, serverParams.port, true);
         }
         else if (FLAGS_mode == "client")

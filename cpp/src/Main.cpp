@@ -13,10 +13,10 @@ int main(int argc, char* argv[])
                          std::chrono::steady_clock().now().time_since_epoch())
                          .count();
 
-#if FOLLY_HAVE_LIBFLAGS
+    // #if FOLLY_HAVE_LIBFLAGS
     // Enable glog logging to stderr by default.
     gflags::SetCommandLineOptionWithMode("logtostderr", "1", gflags::SET_FLAGS_DEFAULT);
-#endif
+    // #endif
 
     folly::init(&argc, &argv, false);
     int result = 0;

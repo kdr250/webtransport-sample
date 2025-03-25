@@ -1,5 +1,6 @@
 #include "HQServerModule.h"
 #include <proxygen/lib/http/session/HQSession.h>
+#include "H2Server.h"
 #include "HQServer.h"
 #include "SampleHandler.h"
 
@@ -33,13 +34,16 @@ namespace quic::samples
     void startServer(const HQToolServerParams& params,
                      std::unique_ptr<quic::QuicTransportStatsCallbackFactory>&& statsFactory)
     {
-        // Run HQ Server
+        // Run H2 server in a separate thread
         Dispatcher dispatcher(
             HandlerParams(params.protocol, params.port, params.httpVersion.canonical));
         auto dispatchFn = [&dispatcher](proxygen::HTTPMessage* request)
         {
             return dispatcher.getRequestHandler(request);
         };
+        auto h2server = H2Server::run(params, dispatchFn);
+
+        // Run HQ Server
         std::function<void(HQSession*)> onTransportReadyFn;
         if (params.sendKnobFrame)
         {
@@ -57,9 +61,7 @@ namespace quic::samples
         server.start();
         // Wait until the quic server initializes
         server.getAddress();
-
-        // TODO: implement H2 Server
-
+        h2server.join();
         server.stop();
     }
 }  // namespace quic::samples
