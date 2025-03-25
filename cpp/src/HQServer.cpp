@@ -275,6 +275,7 @@ namespace quic::samples
         {
             iter->second(std::move(quicSocket), getConnectionManager(eventBase));
         }
+        LOG(INFO) << "onQuicTransportReady!";
     }
 
     void HQServerTransportFactory::onConnectionSetupError(

@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 from aioquic.asyncio import connect
 from aioquic.quic.configuration import QuicConfiguration
@@ -13,12 +14,10 @@ async def run_client(host, port, ca_cert_path):
         reader, writer = await protocol.create_stream()
         print("Connected")
 
-        while not reader.at_eof():
-            # text = input("Message: ")
-            text = "Hello World!"
-            writer.write((text).encode())
-            print("Sending to server...",end="")
-            await reader.read(1024)
+        text = "Hello World!"
+        writer.write((text).encode())
+        print("Sending to server...",end="")
+        await reader.read(1024)
 
         print("done")
         print("Sending eof...",end="")
@@ -27,8 +26,12 @@ async def run_client(host, port, ca_cert_path):
         await protocol.wait_closed()
         print("done")
 
-def main():
-    asyncio.run(run_client('127.0.0.1', 6666, 'ca_cert.pem'))
+def main(args):
+    asyncio.run(run_client('127.0.0.1', 6666, args.certificate))
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('certificate')
+    args = parser.parse_args()
+
+    main(args)

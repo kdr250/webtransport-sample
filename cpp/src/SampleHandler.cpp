@@ -4,6 +4,7 @@ namespace quic::samples
 {
     proxygen::HTTPTransactionHandler* Dispatcher::getRequestHandler(proxygen::HTTPMessage* message)
     {
+        LOG(INFO) << "getRequestHandler!";
         DCHECK(message);
         auto path = message->getPathAsStringPiece();
         if (path == "/" || path == "/echo")

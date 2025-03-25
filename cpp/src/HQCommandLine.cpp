@@ -64,8 +64,8 @@ DEFINE_uint32(quic_batching_mode,
 DEFINE_uint32(quic_batch_size,
               quic::kDefaultQuicMaxBatchSize,
               "Maximum number of packets that can be batched in Quic");
-DEFINE_string(cert, "", "Certificate file path");
-DEFINE_string(key, "", "Private key file path");
+DEFINE_string(cert, "resources/test.pem", "Certificate file path");
+DEFINE_string(key, "resources/test-key.pem", "Private key file path");
 DEFINE_string(client_auth_mode, "none", "Client authentication mode");
 DEFINE_string(qlogger_path,
               "",
