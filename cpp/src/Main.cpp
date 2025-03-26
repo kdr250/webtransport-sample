@@ -2,6 +2,7 @@
 #include <folly/portability/GFlags.h>
 
 #include "ConnIdLogger.h"
+#include "HQClient.h"
 #include "HQCommandLine.h"
 #include "HQServerModule.h"
 
@@ -43,7 +44,7 @@ int main(int argc, char* argv[])
                 break;
 
             case HQMode::CLIENT:
-                // TODO: not yet implemented
+                result = startClient(boost::get<HQToolClientParams>(params.params));
                 break;
 
             default:
