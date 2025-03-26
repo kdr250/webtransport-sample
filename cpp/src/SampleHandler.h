@@ -131,7 +131,7 @@ namespace quic::samples
             return resp;
         }
 
-        proxygen::HTTPTransaction* transaction {nullptr};
+        proxygen::HTTPTransaction* transaction = nullptr;
         const HandlerParams& params;
     };
 
@@ -203,8 +203,7 @@ namespace quic::samples
         {
         }
 
-        void onHeadersComplete(
-            std::unique_ptr<proxygen::HTTPMessage> /* message */) noexcept override;
+        void onHeadersComplete(std::unique_ptr<proxygen::HTTPMessage> message) noexcept override;
 
         void onWebTransportBidiStream(
             proxygen::HTTPCodec::StreamID id,
@@ -218,19 +217,20 @@ namespace quic::samples
 
         void onDatagram(std::unique_ptr<folly::IOBuf> datagram) noexcept override;
 
-        void onBody(std::unique_ptr<folly::IOBuf> /* chain */) noexcept override;
+        void onBody(std::unique_ptr<folly::IOBuf> body) noexcept override;
 
         void onEOM() noexcept override;
 
-        void onError(const proxygen::HTTPException& /* error */) noexcept override;
+        void onError(const proxygen::HTTPException& error) noexcept override;
 
         void detachTransaction() noexcept override {}
 
-        void readhandler(proxygen::WebTransport::StreamReadHandle* readHandle,
+        void readHandler(proxygen::WebTransport::StreamReadHandle* readHandle,
                          folly::Try<proxygen::WebTransport::StreamData> streamData);
 
         folly::Optional<devious::DeviousBaton> devious;
         folly::EventBase* eventBase = nullptr;
+        std::map<uint64_t, devious::DeviousBaton::BatonMessageState> streams;
     };
 
     class DummyHandler : public BaseSampleHandler

@@ -156,7 +156,7 @@ namespace devious
         if (state.state == BatonMessageState::DONE)
         {
             MessageSource arrivedOn;
-            if (steramId & 0x2)
+            if (streamId & 0x2)
             {
                 arrivedOn = UNI;
             }
@@ -169,7 +169,7 @@ namespace devious
                 arrivedOn = PEER_BIDI;
             }
 
-            auto who = onBattonMessage(streamId, arrivedOn, state.baton);
+            auto who = onBatonMessage(streamId, arrivedOn, state.baton);
             if (who.hasError())
             {
                 closeSession(uint32_t(who.error()));
@@ -194,7 +194,7 @@ namespace devious
             case BatonMessageState::PAD_LEN:
             {
                 auto padLen = quic::decodeQuicInteger(cursor);
-                if (!padlen)
+                if (!padLen)
                 {
                     underflow = true;
                     break;
@@ -227,7 +227,7 @@ namespace devious
                     break;
                 }
                 state.baton = cursor.read<uint8_t>();
-                LOG(INFO) << "Parsed baton=" uint64_t(state.baton);
+                LOG(INFO) << "Parsed baton=" << uint64_t(state.baton);
                 consumed += 1;
                 state.state = BatonMessageState::DONE;
                 [[fallthrough]];
@@ -244,7 +244,7 @@ namespace devious
 
         if (underflow && fin)
         {
-            return folly::makeUnexpected(BattonSessionError::BRUH);
+            return folly::makeUnexpected(BatonSessionError::BRUH);
         }
 
         state.bufQueue.trimStartAtMost(consumed);
@@ -259,7 +259,7 @@ namespace devious
         }
         if (activeBatons == 0)
         {
-            closeSession(uint32_t(BattonSessionError::BRUH));
+            closeSession(uint32_t(BatonSessionError::BRUH));
             return;
         }
 
@@ -286,13 +286,13 @@ namespace devious
         }
     }
 
-    folly::Expected<WhoFinished, BatonSessionError>
+    folly::Expected<DeviousBaton::WhoFinished, BatonSessionError>
         DeviousBaton::onBatonMessage(uint64_t inStreamId, MessageSource arrivedOn, uint8_t baton)
     {
         if (baton % 7 == ((mode == Mode::SERVER) ? 0 : 1))
         {
             LOG(INFO) << "Sending datagram on baton=" << uint64_t(baton);
-            webTransport->sendDatagram(makeBatonMessage(kDatagramPaddLen, baton));
+            webTransport->sendDatagram(makeBatonMessage(kDatagramPadLen, baton));
         }
         if (baton == 0)
         {
@@ -336,7 +336,7 @@ namespace devious
                                       nullptr                                      // Callback
         );
 
-        if (batton + 1 == 0)
+        if (baton + 1 == 0)
         {
             return WhoFinished::SELF;
         }

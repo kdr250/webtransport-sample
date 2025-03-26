@@ -56,6 +56,7 @@ namespace devious
                 BATON,
                 DONE
             };
+            State state = PAD_LEN;
             folly::IOBufQueue bufQueue;
             uint64_t paddingRemaining;
             uint8_t baton;
