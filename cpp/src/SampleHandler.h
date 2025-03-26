@@ -26,6 +26,7 @@
 #include <proxygen/lib/http/session/HTTPTransaction.h>
 #include <proxygen/lib/utils/SafePathUtils.h>
 
+#include "DeviousBaton.h"
 #include "HQServer.h"
 
 namespace quic::samples
@@ -192,6 +193,44 @@ namespace quic::samples
 
     private:
         bool sendFooter = false;
+    };
+
+    class DeviousBatonHandler : public BaseSampleHandler
+    {
+    public:
+        explicit DeviousBatonHandler(const HandlerParams& params, folly::EventBase* evb) :
+            BaseSampleHandler(params), eventBase(evb)
+        {
+        }
+
+        void onHeadersComplete(
+            std::unique_ptr<proxygen::HTTPMessage> /* message */) noexcept override;
+
+        void onWebTransportBidiStream(
+            proxygen::HTTPCodec::StreamID id,
+            proxygen::WebTransport::BidiStreamHandle stream) noexcept override;
+
+        void onWebTransportUniStream(
+            proxygen::HTTPCodec::StreamID id,
+            proxygen::WebTransport::StreamReadHandle* readHandle) noexcept override;
+
+        void onWebTransportSessionClose(folly::Optional<uint32_t> error) noexcept override;
+
+        void onDatagram(std::unique_ptr<folly::IOBuf> datagram) noexcept override;
+
+        void onBody(std::unique_ptr<folly::IOBuf> /* chain */) noexcept override;
+
+        void onEOM() noexcept override;
+
+        void onError(const proxygen::HTTPException& /* error */) noexcept override;
+
+        void detachTransaction() noexcept override {}
+
+        void readhandler(proxygen::WebTransport::StreamReadHandle* readHandle,
+                         folly::Try<proxygen::WebTransport::StreamData> streamData);
+
+        folly::Optional<devious::DeviousBaton> devious;
+        folly::EventBase* eventBase = nullptr;
     };
 
     class DummyHandler : public BaseSampleHandler
