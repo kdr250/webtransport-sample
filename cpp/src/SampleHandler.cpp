@@ -12,8 +12,6 @@ namespace quic::samples
             return new EchoHandler(params);
         }
 
-        // FIXME
-        LOG(ERROR) << "Undefined path...";
-        exit(EXIT_FAILURE);
+        return new DummyHandler(params);
     }
 }  // namespace quic::samples

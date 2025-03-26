@@ -193,4 +193,52 @@ namespace quic::samples
     private:
         bool sendFooter = false;
     };
+
+    class DummyHandler : public BaseSampleHandler
+    {
+    public:
+        explicit DummyHandler(const HandlerParams& params) : BaseSampleHandler(params) {}
+
+        DummyHandler() = delete;
+
+        void onHeadersComplete(std::unique_ptr<proxygen::HTTPMessage> message) noexcept override
+        {
+            VLOG(10) << "DummyHandler::onHeadersComplete";
+            proxygen::HTTPMessage response;
+            VLOG(10) << "Setting http-version to " << getHttpVersion();
+
+            response.setVersionString(getHttpVersion());
+            response.setStatusCode(200);
+            response.setStatusMessage("Ok");
+            response.setWantsKeepalive(true);
+
+            maybeAddAltSvcHeader(response);
+
+            transaction->sendHeaders(response);
+            if (message->getMethod() == proxygen::HTTPMethod::GET)
+            {
+                transaction->sendBody(folly::IOBuf::copyBuffer(kDummyMessage));
+            }
+        }
+
+        void onBody(std::unique_ptr<folly::IOBuf> /* chain */) noexcept override
+        {
+            VLOG(10) << "DummyHandler::onBody";
+            transaction->sendBody(folly::IOBuf::copyBuffer(kDummyMessage));
+        }
+
+        void onEOM() noexcept override
+        {
+            VLOG(10) << "DummyHandler::onEOM";
+            transaction->sendEOM();
+        }
+
+        void onError(const proxygen::HTTPException& /* error */) noexcept override
+        {
+            transaction->sendAbort();
+        }
+
+    private:
+        const std::string kDummyMessage = folly::to<std::string>("Undefined path...");
+    };
 }  // namespace quic::samples
