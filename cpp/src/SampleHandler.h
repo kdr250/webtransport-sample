@@ -26,6 +26,7 @@
 #include <proxygen/lib/http/session/HTTPTransaction.h>
 #include <proxygen/lib/utils/SafePathUtils.h>
 
+#include "DeviousBaton.h"
 #include "HQServer.h"
 
 namespace quic::samples
@@ -130,7 +131,7 @@ namespace quic::samples
             return resp;
         }
 
-        proxygen::HTTPTransaction* transaction {nullptr};
+        proxygen::HTTPTransaction* transaction = nullptr;
         const HandlerParams& params;
     };
 
@@ -192,5 +193,91 @@ namespace quic::samples
 
     private:
         bool sendFooter = false;
+    };
+
+    class DeviousBatonHandler : public BaseSampleHandler
+    {
+    public:
+        explicit DeviousBatonHandler(const HandlerParams& params, folly::EventBase* evb) :
+            BaseSampleHandler(params), eventBase(evb)
+        {
+        }
+
+        void onHeadersComplete(std::unique_ptr<proxygen::HTTPMessage> message) noexcept override;
+
+        void onWebTransportBidiStream(
+            proxygen::HTTPCodec::StreamID id,
+            proxygen::WebTransport::BidiStreamHandle stream) noexcept override;
+
+        void onWebTransportUniStream(
+            proxygen::HTTPCodec::StreamID id,
+            proxygen::WebTransport::StreamReadHandle* readHandle) noexcept override;
+
+        void onWebTransportSessionClose(folly::Optional<uint32_t> error) noexcept override;
+
+        void onDatagram(std::unique_ptr<folly::IOBuf> datagram) noexcept override;
+
+        void onBody(std::unique_ptr<folly::IOBuf> body) noexcept override;
+
+        void onEOM() noexcept override;
+
+        void onError(const proxygen::HTTPException& error) noexcept override;
+
+        void detachTransaction() noexcept override {}
+
+        void readHandler(proxygen::WebTransport::StreamReadHandle* readHandle,
+                         folly::Try<proxygen::WebTransport::StreamData> streamData);
+
+        folly::Optional<devious::DeviousBaton> devious;
+        folly::EventBase* eventBase = nullptr;
+        std::map<uint64_t, devious::DeviousBaton::BatonMessageState> streams;
+    };
+
+    class DummyHandler : public BaseSampleHandler
+    {
+    public:
+        explicit DummyHandler(const HandlerParams& params) : BaseSampleHandler(params) {}
+
+        DummyHandler() = delete;
+
+        void onHeadersComplete(std::unique_ptr<proxygen::HTTPMessage> message) noexcept override
+        {
+            VLOG(10) << "DummyHandler::onHeadersComplete";
+            proxygen::HTTPMessage response;
+            VLOG(10) << "Setting http-version to " << getHttpVersion();
+
+            response.setVersionString(getHttpVersion());
+            response.setStatusCode(200);
+            response.setStatusMessage("Ok");
+            response.setWantsKeepalive(true);
+
+            maybeAddAltSvcHeader(response);
+
+            transaction->sendHeaders(response);
+            if (message->getMethod() == proxygen::HTTPMethod::GET)
+            {
+                transaction->sendBody(folly::IOBuf::copyBuffer(kDummyMessage));
+            }
+        }
+
+        void onBody(std::unique_ptr<folly::IOBuf> /* chain */) noexcept override
+        {
+            VLOG(10) << "DummyHandler::onBody";
+            transaction->sendBody(folly::IOBuf::copyBuffer(kDummyMessage));
+        }
+
+        void onEOM() noexcept override
+        {
+            VLOG(10) << "DummyHandler::onEOM";
+            transaction->sendEOM();
+        }
+
+        void onError(const proxygen::HTTPException& /* error */) noexcept override
+        {
+            transaction->sendAbort();
+        }
+
+    private:
+        const std::string kDummyMessage = folly::to<std::string>("Undefined path...");
     };
 }  // namespace quic::samples
