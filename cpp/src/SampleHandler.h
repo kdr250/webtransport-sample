@@ -280,4 +280,53 @@ namespace quic::samples
     private:
         const std::string kDummyMessage = folly::to<std::string>("Undefined path...");
     };
+
+    namespace
+    {
+        constexpr auto kPushFileName = "resources/push.txt";
+    }
+
+    class ServerPushHandler : public BaseSampleHandler
+    {
+        class ServerPushTransactionHandler : public proxygen::HTTPPushTransactionHandler
+        {
+            void setTransaction(proxygen::HTTPTransaction* trans) noexcept override {}
+
+            void detachTransaction() noexcept override {}
+
+            void onError(const proxygen::HTTPException& error) noexcept override {}
+
+            void onEgressPaused() noexcept override {}
+
+            void onEgressResumed() noexcept override {}
+        };
+
+    public:
+        explicit ServerPushHandler(const HandlerParams& params) : BaseSampleHandler(params) {}
+
+        void onHeadersComplete(std::unique_ptr<proxygen::HTTPMessage> message) noexcept override;
+
+        void onBody(std::unique_ptr<folly::IOBuf> chain) noexcept override;
+
+        void onError(const proxygen::HTTPException& error) noexcept override;
+
+        void onEOM() noexcept override;
+
+        void detachTransaction() noexcept override {}
+
+    private:
+        void sendPushPromise(proxygen::HTTPTransaction* pushTransaction, const std::string& path);
+
+        void sendErrorResponse(const std::string& body);
+
+        void sendPushResponse(proxygen::HTTPTransaction* pushTransaction,
+                              const std::string& url,
+                              const std::string& body,
+                              bool eom);
+
+        void sendOkResponse(const std::string& body, bool eom);
+
+        std::string path;
+        ServerPushTransactionHandler pushTransactionHandler;
+    };
 }  // namespace quic::samples
