@@ -19,6 +19,10 @@ namespace quic::samples
         {
             return new DeviousBatonHandler(params, folly::EventBaseManager::get()->getEventBase());
         }
+        if (boost::algorithm::starts_with(path, "/push"))
+        {
+            return new ServerPushHandler(params);
+        }
 
         return new DummyHandler(params);
     }
@@ -207,6 +211,163 @@ namespace quic::samples
                                               readHandler(readHandle, std::move(streamData));
                                           });
             }
+        }
+    }
+
+    void ServerPushHandler::onHeadersComplete(
+        std::unique_ptr<proxygen::HTTPMessage> message) noexcept
+    {
+        VLOG(10) << "ServerPushHandler::" << __func__;
+        message->dumpMessage(2);
+        path = message->getPath();
+
+        if (message->getMethod() != proxygen::HTTPMethod::GET)
+        {
+            LOG(ERROR) << "Method not supported";
+            sendErrorResponse("bad request...");
+            return;
+        }
+
+        VLOG(2) << "Received GET request for " << path << " at: "
+                << std::chrono::duration_cast<std::chrono::microseconds>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                       .count();
+
+        std::string gPushResponseBody;
+        std::vector<std::string> pathPieces;
+        std::string copiedPath = path;
+        boost::split(pathPieces, copiedPath, boost::is_any_of("/"));
+        int responseSize = 0;
+        int numResponses = 1;
+
+        if (pathPieces.size() > 2)
+        {
+            auto sizeFromPath = folly::tryTo<int>(pathPieces[2]);
+            responseSize      = sizeFromPath.value_or(0);
+            if (responseSize != 0)
+            {
+                VLOG(2) << "Requested a response size of " << responseSize;
+                gPushResponseBody = std::string(responseSize, 'a');
+            }
+        }
+
+        if (pathPieces.size() > 3)
+        {
+            auto numResponseFromPath = folly::tryTo<int>(pathPieces[3]);
+            numResponses             = numResponseFromPath.value_or(1);
+            VLOG(2) << "Requested a repeat count of " << numResponses;
+        }
+
+        for (int i = 0; i < numResponses; ++i)
+        {
+            VLOG(2) << "Sending push text " << i << "/" << numResponses;
+
+            // Create a URL for the pushed resource
+            auto pushedResourceUrl = folly::to<std::string>(message->getURL(), "/", "pushed", i);
+
+            // Create a pushed transaction and handler
+            auto pushedTransaction = transaction->newPushedTransaction(&pushTransactionHandler);
+
+            if (!pushedTransaction)
+            {
+                LOG(ERROR) << "Could not create push transaction: stop pushing";
+                break;
+            }
+
+            // Send a promise for the pushed resource
+            sendPushPromise(pushedTransaction, pushedResourceUrl);
+
+            // Send the push response
+            sendPushResponse(pushedTransaction, pushedResourceUrl, gPushResponseBody, true);
+        }
+
+        // Send the response to the original get request
+        sendOkResponse("I AM THE REQUEST RESPONSE AND I AM RESPONSIBLE", true);
+    }
+
+    void ServerPushHandler::onBody(std::unique_ptr<folly::IOBuf> chain) noexcept
+    {
+        VLOG(10) << "ServerPushHandler::" << __func__ << " - ignoring";
+    }
+
+    void ServerPushHandler::onError(const proxygen::HTTPException& error) noexcept
+    {
+        VLOG(10) << "ServerPushHandler::onError error=" << error.what();
+    }
+
+    void ServerPushHandler::onEOM() noexcept
+    {
+        VLOG(10) << "ServerPushHandler::" << __func__ << " - ignoring";
+    }
+
+    void ServerPushHandler::sendPushPromise(proxygen::HTTPTransaction* pushTransaction,
+                                            const std::string& pushedResourceUrl)
+    {
+        VLOG(10) << "ServerPushHandler::" << __func__;
+        proxygen::HTTPMessage promise;
+        promise.setMethod("GET");
+        promise.setURL(pushedResourceUrl);
+        promise.setVersionString(getHttpVersion());
+        promise.setIsChunked(true);
+        transaction->sendHeaders(promise);
+
+        VLOG(2) << "Sent push promise for " << pushedResourceUrl << " at: "
+                << std::chrono::duration_cast<std::chrono::microseconds>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                       .count();
+    }
+
+    void ServerPushHandler::sendErrorResponse(const std::string& body)
+    {
+        proxygen::HTTPMessage resp = createHttpResponse(400, "ERROR");
+        resp.setWantsKeepalive(false);
+        transaction->sendHeaders(resp);
+        transaction->sendBody(folly::IOBuf::copyBuffer(body));
+        transaction->sendEOM();
+    }
+
+    void ServerPushHandler::sendPushResponse(proxygen::HTTPTransaction* pushTransaction,
+                                             const std::string& pushedResourceUrl,
+                                             const std::string& pushedResourceBody,
+                                             bool eom)
+    {
+        VLOG(10) << "ServerPushHandler::" << __func__;
+        proxygen::HTTPMessage response = createHttpResponse(200, "OK");
+        response.setWantsKeepalive(true);
+        response.setIsChunked(true);
+        pushTransaction->sendHeaders(response);
+
+        std::string responseStr =
+            "I AM THE PUSHED RESPONSE AND I AM NOT RESPONSIBLE: " + pushedResourceBody;
+
+        pushTransaction->sendBody(folly::IOBuf::copyBuffer(responseStr));
+
+        VLOG(2) << "Sent push response for " << pushedResourceUrl << " at: "
+                << std::chrono::duration_cast<std::chrono::microseconds>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                       .count();
+
+        if (eom)
+        {
+            pushTransaction->sendEOM();
+            VLOG(2) << "Sent EOM for " << pushedResourceUrl << " at: "
+                    << std::chrono::duration_cast<std::chrono::microseconds>(
+                           std::chrono::steady_clock::now().time_since_epoch())
+                           .count();
+        }
+    }
+
+    void ServerPushHandler::sendOkResponse(const std::string& body, bool eom)
+    {
+        VLOG(10) << "ServerPushHandler::" << __func__ << ": sending " << body.length() << " bytes";
+        proxygen::HTTPMessage resp = createHttpResponse(200, "OK");
+        resp.setWantsKeepalive(true);
+        resp.setIsChunked(true);
+        transaction->sendHeaders(resp);
+        transaction->sendBody(folly::IOBuf::copyBuffer(body));
+        if (eom)
+        {
+            transaction->sendEOM();
         }
     }
 }  // namespace quic::samples
