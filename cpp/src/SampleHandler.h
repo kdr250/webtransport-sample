@@ -329,4 +329,41 @@ namespace quic::samples
         std::string path;
         ServerPushTransactionHandler pushTransactionHandler;
     };
+
+    class TestHandler : public BaseSampleHandler
+    {
+    public:
+        explicit TestHandler(const HandlerParams& params, folly::EventBase* evb) :
+            BaseSampleHandler(params), eventBase(evb)
+        {
+        }
+
+        void onHeadersComplete(std::unique_ptr<proxygen::HTTPMessage> message) noexcept override;
+
+        void onWebTransportBidiStream(
+            proxygen::HTTPCodec::StreamID id,
+            proxygen::WebTransport::BidiStreamHandle stream) noexcept override;
+
+        void onWebTransportUniStream(
+            proxygen::HTTPCodec::StreamID id,
+            proxygen::WebTransport::StreamReadHandle* readHandle) noexcept override;
+
+        void onWebTransportSessionClose(folly::Optional<uint32_t> error) noexcept override;
+
+        void onDatagram(std::unique_ptr<folly::IOBuf> datagram) noexcept override;
+
+        void onBody(std::unique_ptr<folly::IOBuf> body) noexcept override;
+
+        void onEOM() noexcept override;
+
+        void onError(const proxygen::HTTPException& error) noexcept override;
+
+        void detachTransaction() noexcept override {}
+
+        void readHandler(proxygen::WebTransport::StreamWriteHandle* writeHandle,
+                         proxygen::WebTransport::StreamReadHandle* readHandle,
+                         folly::Try<proxygen::WebTransport::StreamData> streamData);
+
+        folly::EventBase* eventBase = nullptr;
+    };
 }  // namespace quic::samples

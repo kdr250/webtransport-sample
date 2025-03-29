@@ -23,6 +23,10 @@ namespace quic::samples
         {
             return new ServerPushHandler(params);
         }
+        if (path == "/test")
+        {
+            return new TestHandler(params, folly::EventBaseManager::get()->getEventBase());
+        }
 
         return new DummyHandler(params);
     }
@@ -274,6 +278,9 @@ namespace quic::samples
                 break;
             }
 
+            proxygen::WebTransport* webTransport = pushedTransaction->getWebTransport();
+            webTransport->awaitBidiStreamCredit();
+
             // Send a promise for the pushed resource
             sendPushPromise(pushedTransaction, pushedResourceUrl);
 
@@ -368,6 +375,134 @@ namespace quic::samples
         if (eom)
         {
             transaction->sendEOM();
+        }
+    }
+
+    void TestHandler::onHeadersComplete(std::unique_ptr<proxygen::HTTPMessage> message) noexcept
+    {
+        VLOG(10) << "WebtransportHandler::" << __func__;
+        message->dumpMessage(2);
+
+        if (message->getMethod() != proxygen::HTTPMethod::CONNECT)
+        {
+            LOG(ERROR) << "Method not supported! method=" << message->getMethodString();
+            proxygen::HTTPMessage response;
+            response.setVersionString(getHttpVersion());
+            response.setStatusCode(400);
+            response.setStatusMessage("ERROR");
+            response.setWantsKeepalive(false);
+
+            transaction->sendHeaders(response);
+            transaction->sendEOM();
+            transaction = nullptr;
+            return;
+        }
+
+        VLOG(2) << "Received CONNECT request for " << message->getPathAsStringPiece() << " at: "
+                << std::chrono::duration_cast<std::chrono::microseconds>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                       .count();
+
+        auto status       = 500;
+        auto webTransport = transaction->getWebTransport();
+        if (webTransport)
+        {
+            status = 200;
+        }
+
+        // Send the response to the original get request
+        proxygen::HTTPMessage response;
+        response.setVersionString(getHttpVersion());
+        response.setStatusCode(status);
+        response.setIsChunked(true);
+
+        if (status / 100 == 2)
+        {
+            response.getHeaders().add("sec-webtransport-http3-draft", "draft02");
+            response.setWantsKeepalive(true);
+        }
+        else
+        {
+            response.setWantsKeepalive(false);
+        }
+        response.dumpMessage(4);
+        transaction->sendHeaders(response);
+    }
+
+    void TestHandler::onWebTransportBidiStream(
+        proxygen::HTTPCodec::StreamID id,
+        proxygen::WebTransport::BidiStreamHandle stream) noexcept
+    {
+        VLOG(4) << "New Bidi Stream=" << id;
+        stream.readHandle->awaitNextRead(
+            eventBase,
+            [this, stream](auto readHandle, auto streamData)
+            {
+                readHandler(stream.writeHandle, readHandle, std::move(streamData));
+            });
+    }
+
+    void TestHandler::onWebTransportUniStream(
+        proxygen::HTTPCodec::StreamID id,
+        proxygen::WebTransport::StreamReadHandle* readHandle) noexcept
+    {
+    }
+
+    void TestHandler::onWebTransportSessionClose(folly::Optional<uint32_t> error) noexcept
+    {
+        VLOG(4) << "Session Close error="
+                << (error ? folly::to<std::string>(*error) : std::string("none"));
+    }
+
+    void TestHandler::onDatagram(std::unique_ptr<folly::IOBuf> datagram) noexcept
+    {
+        VLOG(4) << "TestHandler::" << __func__;
+    }
+
+    void TestHandler::onBody(std::unique_ptr<folly::IOBuf> body) noexcept
+    {
+        VLOG(4) << "TestHandler::" << __func__;
+        VLOG(3) << proxygen::IOBufPrinter::printHexFolly(body.get(), true);
+    }
+
+    void TestHandler::onEOM() noexcept
+    {
+        VLOG(4) << "TestHandler::" << __func__;
+        if (transaction && !transaction->isEgressEOMSeen())
+        {
+            transaction->sendEOM();
+        }
+    }
+
+    void TestHandler::onError(const proxygen::HTTPException& error) noexcept
+    {
+        VLOG(4) << "TestHandler::onError error=" << error.what();
+    }
+
+    void TestHandler::readHandler(proxygen::WebTransport::StreamWriteHandle* writeHandle,
+                                  proxygen::WebTransport::StreamReadHandle* readHandle,
+                                  folly::Try<proxygen::WebTransport::StreamData> streamData)
+    {
+        if (streamData.hasException())
+        {
+            VLOG(4) << "read error=" << streamData.exception().what();
+        }
+        else
+        {
+            VLOG(4) << "read data id =" << readHandle->getID();
+            if (!streamData->fin)
+            {
+                readHandle->awaitNextRead(
+                    eventBase,
+                    [this, writeHandle](auto readHandle, auto streamData)
+                    {
+                        readHandler(writeHandle, readHandle, std::move(streamData));
+                    });
+            }
+            else
+            {
+                writeHandle->writeStreamData(std::move(streamData->data), true, nullptr);
+            }
         }
     }
 }  // namespace quic::samples
