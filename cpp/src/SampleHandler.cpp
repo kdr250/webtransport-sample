@@ -446,6 +446,20 @@ namespace quic::samples
         proxygen::HTTPCodec::StreamID id,
         proxygen::WebTransport::StreamReadHandle* readHandle) noexcept
     {
+        VLOG(4) << "New Uni Stream=" << id;
+        auto webTransport        = transaction->getWebTransport();
+        auto writeHandleExpected = webTransport->createUniStream();
+        if (writeHandleExpected.hasError())
+        {
+            LOG(ERROR) << "Create Unistream Error!";
+            return;
+        }
+        auto writeHandle = writeHandleExpected.value();
+        readHandle->awaitNextRead(eventBase,
+                                  [this, writeHandle](auto readHandle, auto streamData)
+                                  {
+                                      readHandler(writeHandle, readHandle, std::move(streamData));
+                                  });
     }
 
     void TestHandler::onWebTransportSessionClose(folly::Optional<uint32_t> error) noexcept
@@ -457,6 +471,8 @@ namespace quic::samples
     void TestHandler::onDatagram(std::unique_ptr<folly::IOBuf> datagram) noexcept
     {
         VLOG(4) << "TestHandler::" << __func__;
+        auto webTransport = transaction->getWebTransport();
+        webTransport->sendDatagram(datagram->clone());
     }
 
     void TestHandler::onBody(std::unique_ptr<folly::IOBuf> body) noexcept
@@ -490,6 +506,9 @@ namespace quic::samples
         else
         {
             VLOG(4) << "read data id =" << readHandle->getID();
+
+            // TODO: Read streamData !
+
             if (!streamData->fin)
             {
                 readHandle->awaitNextRead(
@@ -501,7 +520,9 @@ namespace quic::samples
             }
             else
             {
+                LOG(INFO) << "read finish!";
                 writeHandle->writeStreamData(std::move(streamData->data), true, nullptr);
+                LOG(INFO) << "write finish!";
             }
         }
     }
