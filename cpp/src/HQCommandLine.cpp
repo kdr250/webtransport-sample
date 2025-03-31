@@ -9,7 +9,7 @@
 #include "CurlClient.h"
 
 DEFINE_string(host, "127.0.0.1", "HQ server hostname/IP");
-DEFINE_int32(port, 6666, "HQ server port");
+DEFINE_int32(port, 4433, "HQ server port");
 DEFINE_int32(threads, 1, "QUIC Server threads, 0 = nCPUs");
 DEFINE_int32(h2port, 6667, "HTTP/2 server port");
 DEFINE_string(local_address, "", "Local Address to bind to. Client only. Format should be ip:port");
