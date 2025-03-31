@@ -434,12 +434,11 @@ namespace quic::samples
         proxygen::WebTransport::BidiStreamHandle stream) noexcept
     {
         VLOG(4) << "New Bidi Stream=" << id;
-        quic::Buf resultData = folly::IOBuf::copyBuffer("Hello! ");
         stream.readHandle->awaitNextRead(
             eventBase,
-            [this, stream, &resultData](auto readHandle, auto streamData)
+            [this, stream](auto readHandle, auto streamData)
             {
-                readHandler(stream.writeHandle, readHandle, std::move(streamData), resultData);
+                readHandler(stream.writeHandle, readHandle, std::move(streamData));
             });
     }
 
@@ -455,14 +454,12 @@ namespace quic::samples
             LOG(ERROR) << "Create Unistream Error!";
             return;
         }
-        auto writeHandle     = writeHandleExpected.value();
-        quic::Buf resultData = folly::IOBuf::copyBuffer("Hello! ");
-        readHandle->awaitNextRead(
-            eventBase,
-            [this, writeHandle, &resultData](auto readHandle, auto streamData)
-            {
-                readHandler(writeHandle, readHandle, std::move(streamData), resultData);
-            });
+        auto writeHandle = writeHandleExpected.value();
+        readHandle->awaitNextRead(eventBase,
+                                  [this, writeHandle](auto readHandle, auto streamData)
+                                  {
+                                      readHandler(writeHandle, readHandle, std::move(streamData));
+                                  });
     }
 
     void TestHandler::onWebTransportSessionClose(folly::Optional<uint32_t> error) noexcept
@@ -500,8 +497,7 @@ namespace quic::samples
 
     void TestHandler::readHandler(proxygen::WebTransport::StreamWriteHandle* writeHandle,
                                   proxygen::WebTransport::StreamReadHandle* readHandle,
-                                  folly::Try<proxygen::WebTransport::StreamData> streamData,
-                                  quic::Buf& resultData)
+                                  folly::Try<proxygen::WebTransport::StreamData> streamData)
     {
         if (streamData.hasException())
         {
@@ -511,27 +507,19 @@ namespace quic::samples
         {
             VLOG(4) << "read data id =" << readHandle->getID();
 
-            // Read streamData
-            if (streamData->data)
-            {
-                LOG(INFO) << "Read streamData ! length = " << streamData->data->length()
-                          << " , resultData length = " << resultData->length();
-                resultData->appendChain(std::move(streamData->data));
-            }
-
             if (!streamData->fin)
             {
                 readHandle->awaitNextRead(
                     eventBase,
-                    [this, writeHandle, &resultData](auto readHandle, auto streamData)
+                    [this, writeHandle](auto readHandle, auto streamData)
                     {
-                        readHandler(writeHandle, readHandle, std::move(streamData), resultData);
+                        readHandler(writeHandle, readHandle, std::move(streamData));
                     });
             }
             else
             {
                 LOG(INFO) << "read finish!";
-                writeHandle->writeStreamData(std::move(resultData), true, nullptr);
+                writeHandle->writeStreamData(std::move(streamData->data), true, nullptr);
                 LOG(INFO) << "write finish!";
             }
         }

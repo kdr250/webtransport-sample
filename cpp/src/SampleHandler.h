@@ -362,8 +362,7 @@ namespace quic::samples
 
         void readHandler(proxygen::WebTransport::StreamWriteHandle* writeHandle,
                          proxygen::WebTransport::StreamReadHandle* readHandle,
-                         folly::Try<proxygen::WebTransport::StreamData> streamData,
-                         quic::Buf& resultData);
+                         folly::Try<proxygen::WebTransport::StreamData> streamData);
 
         folly::EventBase* eventBase = nullptr;
     };
